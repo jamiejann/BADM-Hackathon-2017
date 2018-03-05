@@ -1,0 +1,338 @@
+CTREE::::::::::::::::::::::::::::::::
+library(ROCR)
+library(party)
+
+
+set.seed(123)
+df <- read.csv("wine.csv")
+ind <- sample(2, nrow(df), replace=TRUE, prob=c(0.7,0.3))
+
+train.data = df[ind==1,]
+test.data = df[ind==2,]
+
+
+
+///////////////split <- split(df, df$Sample)
+
+train.data <- split$Estimation
+test.data <- split$Validation
+needtopredict.data <- split$Holdout ??????????
+
+
+myf <- Target ~ Alcohol+Ash+Acl+Phenols+Flavanoids+Proanth+Proline
+
+target_ctree <- ctree(myf, data = train.data)
+
+//create first table
+table(predict(target_ctree), train.data$Target)
+
+//make new column in test.data called Prediction (and loads the predicted value into the col)
+test.data$Prediction <- predict(target_ctree, newdata=test.data)
+
+//what % did we predict right on the test data?
+test.data$Correct <- test.data$Prediction == test.data$Target
+print(paste("% of predicted classifications correct", mean(test.data$Correct)))
+
+
+//Make new column in test.data called Probability and load the PROBABILITY IN HERE
+test.data$Probabilities <- 1- unlist(treeresponse(target_ctree,newdata=test.data), use.names=F)[seq(1,nrow(test.data)*2,2)]
+
+//plot ROC CURVE
+
+library(ROCR)
+pred <- prediction(test.data$Probabilities, test.data$Target)
+perf <- performance(pred,"tpr","fpr")
+plot(perf, main="ROC curve", colorize=T)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GLM::::::::::::::::::::::::
+
+set.seed(123)
+df <- read.csv("wine.csv", stringAsFactors=FALSE)
+ind <- sample(2, nrow(df), replace=TRUE, prob=c(0.7,0.3))
+
+train.data = df[ind==1,]
+test.data = df[ind==2,]
+
+
+
+?????????????
+split <- split(df, df$Sample)
+
+train.data <- split$Estimation
+test.data <- split$Validation
+needtopredict.data <- split$Test ??????????
+
+
+glmmodel <- glm(Target~Alcohol+Ash+Acl+Phenols+Flavanoids+Proanth+Proline, data=train.data, family=binomial)
+
+//error still shows, but ignored for now
+
+//response for normalized
+predict(glmmodel, newdata=train.data, type="response")
+
+predicted.data = round(predict(glmmodel, newdata=train.data, type="response"))
+
+//make new column in train.data called Predictions
+train.data$Prediction <- predicted.data
+
+//put probability in training data
+temp = predict(glmmodel, newdata=train.data, type="response")
+
+
+
+
+//do same for test.data
+temp = round(predict(glmmodel, newdata=test.data, type="response"))
+test.data$Prediction <- temp
+
+
+
+//IMPORTANT CHANGE 1 TO YES AND 0 TO NO
+test.data$Prediction[which(test.data$Prediction==1)]<- "YES"
+
+
+
+
+//what % did we predict right on the test data?
+//MAKE SURE TARGET AND CORRECT ARE BOTH YES/NO OR 1/0 OR IT WILL NOT WORK
+test.data$Correct <- test.data$Prediction == test.data$Target
+print(paste("% of predicted classifications correct", mean(test.data$Correct)))
+
+
+
+// do the above for all 3? NO
+//JUST USE GLMMODEL TRAINED BY TRAIN.DATA IN LINE 89 AND TRAIN DF AS A WHOLE FILE
+
+
+library(ROCR)
+pred <- prediction(test.data$Probabilities, test.data$Target)
+perf <- performance(pred,"tpr","fpr")
+plot(perf, main="ROC curve", colorize=T)
+
+
+
+
+summary(model)
+
+//in glm 
+predict(model, newdata, type="response"), will get predicted probability
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+RandomForest::::::::::::::::::::::::::::
+
+
+library(ggplot2)
+library(randomForest)
+library(dplyr)  //for %>%
+
+set.seed(123)
+df <- read.csv("wine.csv")
+ind <- sample(2, nrow(df), replace=TRUE, prob=c(0.7,0.3))
+
+train.data = df[ind==1,]
+test.data = df[ind==2,]
+
+str(df)
+set.seed(754)
+
+rforestmodel <- randomForest(factor(Target)~Alcohol+Ash+Acl+Phenols+Flavanoids+Proanth+Proline, data=train.data)
+
+//get importance
+varImportance <- data.frame(Variables = row.names(importance), 
+                            Importance = round(importance[ ,'MeanDecreaseGini'],2))
+
+
+//Create a rank variable based on importance
+rankImportance <- varImportance %>%
+  mutate(Rank = paste0('#',dense_rank(desc(Importance))))
+
+//create plot
+ggplot(rankImportance, aes(x = reorder(Variables, Importance), 
+    y = Importance, fill = Importance)) +
+  geom_bar(stat='identity') + 
+  geom_text(aes(x = Variables, y = 0.5, label = Rank),
+    hjust=0, vjust=0.55, size = 4, colour = 'red') +
+  labs(x = 'Variables') +
+  coord_flip() + 
+  theme_few()
+
+
+//create first table
+table(predict(rforestmodel), train.data$Target)
+
+
+//make new column in test.data called Prediction (and loads the predicted value into the col)
+test.data$Prediction <- predict(rforestmodel, newdata=test.data)
+
+//what % did we predict right on the test data?
+test.data$Correct <- test.data$Prediction == test.data$Target
+print(paste("% of predicted classifications correct", mean(test.data$Correct)))
+
+
+
+//STUCK HERE ::::::::::::::::::::::::::::::::::::::::: how to predict?
+
+
+
+//Make new column in test.data called Probability and load the PROBABILITY IN HERE
+test.data$Probabilities <- 1- unlist(treeresponse(rforestmodel,newdata=test.data), use.names=F)[seq(1,nrow(test.data)*2,2)]
+
+//plot ROC CURVE
+
+library(ROCR)
+pred <- prediction(test.data$Probabilities, test.data$Target)
+perf <- performance(pred,"tpr","fpr")
+plot(perf, main="ROC curve", colorize=T)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+SVM:::::::::::::::::::::::::::::::
+
+
+library(e1071)
+
+set.seed(123)
+df <- read.csv("wine_2varYESNO.csv", stringsAsFactors = TRUE)
+ind <- sample(2, nrow(df), replace=TRUE, prob=c(0.7,0.3))
+train.data = df[ind==1,]
+test.data = df[ind==2,]
+myf <- Target ~ Alcohol+Ash+Acl+Phenols+Flavanoids+Proanth+Proline
+
+
+svmmodel <- svm(myf,data=train.data,kernel='linear',probability=TRUE,gamma=0.2,cost=100)
+
+
+//make first chart
+table(predict(svmmodel), train.data$Target)
+
+
+//make new column in test.data called Prediction (and loads the predicted value into the col)
+test.data$Prediction <- predict(svmmodel, newdata=test.data)
+
+//what % did we predict right on the test data?
+test.data$Correct <- test.data$Prediction == test.data$Target
+print(paste("% of predicted classifications correct", mean(test.data$Correct)))
+
+
+//extract probability
+pred <- predict(svmmodel, train.data, probability=TRUE)
+attr(pred, "probabilities")
+
+test.data$Probabilities <- attr(pred, "probabilities")
+
+//end here
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Subsetting the variables (making x_train) ????????????????????
+vars = c("Alcohol", "Ash", "Acl", "Flavanoids", "Proanth", "Proline")
+x_train <- train.data[vars]
+
+vars = c("Target")
+y_train <- train.data[vars]
+
+
+
+
+
+
+
+//plot ROC CURVE
+
+library(ROCR)
+pred <- prediction(test.data$Probabilities, test.data$Target)
+perf <- performance(pred,"tpr","fpr")
+plot(perf, main="ROC curve", colorize=T)
+
+
+//Plot Lift Chart
+pred <- prediction(test.data$Probabilities, test.data$Target)
+perf <- performance(pred,"lift","rpp")
+plot(perf, main="lift curve", colorize=T)
+
+//Gain Chart
+pred <- prediction(test.data$Probabilities, test.data$Target)
+perf <- performance(pred,"tpr","rpp")
+plot(perf, main="Gain Chart", colorize=T)
+
+
+write.csv(test.data, "C:\\Users\\egg\\Documents\\VisionAnalytics.csv")
+write.csv(test.data, "C:\\Users\\egg\\Documents\\VisionAnalytics.csv", rownames=FALSE)
+
+setwd("C:/Users/egg/Documents")
+
+//SPLIT into TEST and TRAIN
+split <- split(df, df$Sample)
+
+//replacing 1 with YES
+test.data$Prediction[which(test.data$Prediction==1)]<- "YES"
+
